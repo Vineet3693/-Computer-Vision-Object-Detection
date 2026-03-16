@@ -1,0 +1,21 @@
+# Python
+python>=3.10,<4.0
+
+# Core ML/DL
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0  # YOLOv8
+
+# Computer Vision
+opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
+numpy>=1.24.0
+
+# Dashboard
+streamlit>=1.28.0
+
+# Tracking (optional)
+boxmot>=2.0.0  # ByteTrack implementation
+
+# Utilities
+pillow>=10.0.0
