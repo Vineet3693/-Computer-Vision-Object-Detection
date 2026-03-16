@@ -3,13 +3,97 @@ Configuration settings for the Object Detection System
 All settings centralized in one place
 """
 
-# Model Configuration
-MODEL_PATH = "models/yolov8s.pt"  # Auto-downloaded if not exists
-MODEL_NAME = "yolov8s"  # Options: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+# ============================================================================
+# MODEL SELECTION & CONFIGURATION
+# ============================================================================
+
+# Available YOLOv8 Models (from nano to xlarge)
+AVAILABLE_MODELS = {
+    'yolov8n': {
+        'name': 'YOLOv8 Nano',
+        'size': '3.3MB',
+        'speed': 'Fastest',
+        'accuracy': 'Lower',
+        'params': '3.2M',
+        'use_case': 'Real-time detection on edge devices, low-latency webcam'
+    },
+    'yolov8s': {
+        'name': 'YOLOv8 Small',
+        'size': '11.2MB',
+        'speed': 'Fast',
+        'accuracy': 'Good',
+        'params': '11.2M',
+        'use_case': 'Balanced accuracy/speed, recommended for webcam'
+    },
+    'yolov8m': {
+        'name': 'YOLOv8 Medium',
+        'size': '26.4MB',
+        'speed': 'Medium',
+        'accuracy': 'High',
+        'params': '25.9M',
+        'use_case': 'High accuracy with reasonable speed, good for videos'
+    },
+    'yolov8l': {
+        'name': 'YOLOv8 Large',
+        'size': '52.9MB',
+        'speed': 'Slow',
+        'accuracy': 'Very High',
+        'params': '43.7M',
+        'use_case': 'Maximum accuracy, best results, slower inference'
+    },
+    'yolov8x': {
+        'name': 'YOLOv8 XL',
+        'size': '84.9MB',
+        'speed': 'Very Slow',
+        'accuracy': 'Best',
+        'params': '68.2M',
+        'use_case': 'Highest accuracy, production-grade detection'
+    }
+}
+
+# Default Model Selection
+DEFAULT_MODEL = 'yolov8s'  # Change to: yolov8n, yolov8m, yolov8l, or yolov8x
+MODEL_PATH = f"models/{DEFAULT_MODEL}.pt"  # Auto-downloaded if not exists
+MODEL_NAME = DEFAULT_MODEL
+
+# ============================================================================
+# RECOMMENDED THRESHOLDS BY MODEL
+# ============================================================================
+
+MODEL_THRESHOLDS = {
+    'yolov8n': {
+        'confidence': 0.7,   # Higher threshold needed for nano model
+        'iou': 0.55,
+        'description': 'Speed-optimized settings'
+    },
+    'yolov8s': {
+        'confidence': 0.65,  # Balanced settings
+        'iou': 0.5,
+        'description': 'Recommended settings (current)'
+    },
+    'yolov8m': {
+        'confidence': 0.6,   # Can be lower with medium model
+        'iou': 0.45,
+        'description': 'Accuracy-optimized settings'
+    },
+    'yolov8l': {
+        'confidence': 0.55,  # More confident predictions
+        'iou': 0.45,
+        'description': 'High accuracy settings'
+    },
+    'yolov8x': {
+        'confidence': 0.5,   # Nano has highest confidence
+        'iou': 0.45,
+        'description': 'Maximum accuracy settings'
+    }
+}
+
+# Get thresholds for current model
+_model_config = MODEL_THRESHOLDS.get(DEFAULT_MODEL, MODEL_THRESHOLDS['yolov8s'])
 
 # Detection Thresholds
-CONFIDENCE_THRESHOLD = 0.5  # Minimum confidence for detection
-IOU_THRESHOLD = 0.45  # IoU threshold for NMS
+CONFIDENCE_THRESHOLD = _model_config['confidence']  # Minimum confidence for detection
+IOU_THRESHOLD = _model_config['iou']  # IoU threshold for NMS
 
 # Input Configuration
 INPUT_SIZE = (640, 640)  # Resize dimensions for model input
@@ -77,6 +161,10 @@ SHOW_CLASS_LABEL = True
 SHOW_BBOX = True
 LINE_THICKNESS = 2
 FONT_SCALE = 0.6
+
+# Alert Settings
+ALERT_ON_PERSON_DETECTION = False  # Enable alerts when persons are detected
+PERSON_COUNT_THRESHOLD = 5  # Threshold for person count alerts
 
 # Tracking Configuration (for ByteTrack)
 TRACKING_ENABLED = True

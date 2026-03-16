@@ -43,6 +43,12 @@ A complete, production-ready computer vision system for real-time object detecti
 - 🎛️ **Interactive Dashboard**: Streamlit-based UI for easy interaction
 - 📈 **Performance Metrics**: Precision, recall, FPS, and inference time tracking
 - 🔧 **Configurable Thresholds**: Adjustable confidence and IoU thresholds
+- 🏆 **5 YOLOv8 Models**: Choose from nano→xlarge based on accuracy/speed tradeoff
+  - **YOLOv8 Nano**: Fastest (3.3MB)
+  - **YOLOv8 Small**: Recommended balanced (11.2MB)  
+  - **YOLOv8 Medium**: Higher accuracy (26.4MB)
+  - **YOLOv8 Large**: Very high accuracy (52.9MB)
+  - **YOLOv8 XL**: Maximum accuracy, production-grade (84.9MB)
 
 ---
 
@@ -120,10 +126,27 @@ python -c "from ultralytics import YOLO; print('✅ YOLOv8 installed successfull
 
 ## 🚀 Quick Start
 
-### Run Webcam Detection
+### Real-Time Webcam Detection ✅
 ```bash
+# Start real-time detection from your webcam
 python main.py --source webcam
+
+# With display window (default)
+python main.py --source webcam --no-display=False
+
+# Headless mode (processing without display)
+python main.py --source webcam --no-display
+
+# With higher accuracy (increased confidence threshold)
+python main.py --source webcam --confidence 0.7
+
+# With object tracking enabled
+python main.py --source webcam --tracking
 ```
+
+**Controls during webcam detection:**
+- Press `q` to quit the application
+- Press `s` to save a snapshot
 
 ### Detect Objects in an Image
 ```bash
@@ -135,7 +158,7 @@ python main.py --source inputs/images/test.jpg
 python main.py --source inputs/videos/test.mp4
 ```
 
-### Launch Dashboard
+### Launch Interactive Dashboard
 ```bash
 streamlit run dashboard/app.py
 ```
@@ -158,12 +181,49 @@ python main.py --source path/to/image.jpg
 python main.py --source path/to/video.mp4
 ```
 
+#### 🎯 Model Selection (For Better Accuracy!)
+
+**5 YOLOv8 Models Available** - Choose based on your accuracy/speed needs:
+
+```bash
+# List all available models with details
+python main.py --list-models
+
+# Recommended for webcam (balanced accuracy/speed)
+python main.py --source webcam --model-variant yolov8s
+
+# Higher accuracy (slower)
+python main.py --source webcam --model-variant yolov8m
+
+# Very high accuracy (even slower)
+python main.py --source webcam --model-variant yolov8l
+
+# Best accuracy, production-grade, slowest
+python main.py --source webcam --model-variant yolov8x
+
+# Fastest, edge devices, lower accuracy
+python main.py --source webcam --model-variant yolov8n
+```
+
+**Model Comparison:**
+
+| Model | Size | Speed | Accuracy | Best For |
+|-------|------|-------|----------|----------|
+| **YOLOv8 Nano** (n) | 3.3MB | Fastest ⚡ | Lower | Edge devices, real-time webcam |
+| **YOLOv8 Small** (s) | 11.2MB | Fast ⚡⚡ | Good ✅ | **Recommended for webcam** |
+| **YOLOv8 Medium** (m) | 26.4MB | Medium ⚡⚡⚡ | High ✅✅ | Better accuracy, slower |
+| **YOLOv8 Large** (l) | 52.9MB | Slow ⚡⚡⚡⚡ | Very High ✅✅✅ | Video processing, best results |
+| **YOLOv8 XL** (x) | 84.9MB | Very Slow ⚡⚡⚡⚡⚡ | Best ✅✅✅✅ | Production-grade detection |
+
 #### Advanced Options
 ```bash
-# Use a specific model
-python main.py --source webcam --model yolov8m.pt
+# Use medium model for better accuracy
+python main.py --source webcam --model-variant yolov8m
 
-# Adjust confidence threshold
+# Use large model with maximum accuracy
+python main.py --source video.mp4 --model-variant yolov8l --tracking
+
+# Override confidence threshold
 python main.py --source webcam --confidence 0.7
 
 # Enable object tracking
@@ -171,17 +231,69 @@ python main.py --source video.mp4 --tracking
 
 # Disable display window (headless mode)
 python main.py --source video.mp4 --no-display
+
+# Combine options for maximum accuracy
+python main.py --source webcam --model-variant yolov8l --confidence 0.7 --iou 0.55 --tracking
 ```
 
 #### CLI Arguments Reference
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `--source` | Input source (image/video/webcam) | webcam |
-| `--model` | YOLOv8 model variant | yolov8s.pt |
-| `--confidence` | Detection confidence threshold | 0.5 |
-| `--iou` | IoU threshold for NMS | 0.45 |
-| `--tracking` | Enable object tracking | False |
-| `--no-display` | Disable output window | False |
+| `--source` | Input source (image/video path or 'webcam') | webcam |
+| `--model-variant` | YOLOv8 variant (n/s/m/l/x) | yolov8s |
+| `--model` | [Advanced] Full path to custom model weights | - |
+| `--confidence` | Detection confidence threshold (0-1) | Model-specific* |
+| `--iou` | IoU threshold for NMS (0-1) | Model-specific* |
+| `--tracking` | Enable object tracking (ByteTrack) | False |
+| `--no-display` | Disable output display window | False |
+| `--list-models` | Show all available models and exit | - |
+
+*Model-specific defaults: yolov8n (0.7), yolov8s (0.65), yolov8m (0.6), yolov8l (0.55), yolov8x (0.5)
+
+#### Improving Accuracy - Complete Guide
+
+If you're experiencing false positives or incorrect detections:
+
+1. **Try a larger model (Best for accuracy):**
+   ```bash
+   # Small to medium (much better accuracy)
+   python main.py --source webcam --model-variant yolov8m
+   
+   # Medium to large (even better)
+   python main.py --source webcam --model-variant yolov8l
+   ```
+
+2. **Increase confidence threshold:**
+   ```bash
+   python main.py --source webcam --confidence 0.75  # Higher = fewer but more confident detections
+   ```
+
+3. **Adjust IOU threshold to reduce overlapping detections:**
+   ```bash
+   python main.py --source webcam --iou 0.55  # Higher = fewer overlapping boxes
+   ```
+
+4. **Enable object tracking:**
+   ```bash
+   python main.py --source webcam --tracking  # Helps with false positives over time
+   ```
+
+5. **Best practice for maximum accuracy on webcam:**
+   ```bash
+   python main.py --source webcam --model-variant yolov8l --confidence 0.7 --iou 0.55 --tracking
+   ```
+
+6. **For comparing different models quickly:**
+   ```bash
+   # Quick test with nano (fastest)
+   python main.py --source webcam --model-variant yolov8n --no-display
+   
+   # Test with medium (high accuracy)
+   python main.py --source webcam --model-variant yolov8m --no-display
+   
+   # Test with large (maximum accuracy)
+   python main.py --source webcam --model-variant yolov8l --no-display
+   ```
 
 ---
 
@@ -227,19 +339,53 @@ object-detection-project/
 
 ## ⚙️ Configuration
 
-Edit `src/config.py` to customize settings:
+### Quick Configuration (via Command Line) ✨
+
+The easiest way is to use command-line arguments:
+
+```bash
+# Change model
+python main.py --source webcam --model-variant yolov8m
+
+# Show all available models
+python main.py --list-models
+
+# Customize thresholds
+python main.py --source webcam --model-variant yolov8l --confidence 0.7 --iou 0.55
+```
+
+### Advanced Configuration (Edit `src/config.py`)
+
+For permanent configuration changes, edit the config file:
 
 ```python
-# Model Configuration
-MODEL_PATH = "models/yolov8s.pt"
-MODEL_NAME = "yolov8s"  # n, s, m, l, x
+# Model Selection (change DEFAULT_MODEL to one of the variants)
+DEFAULT_MODEL = 'yolov8s'  # Options: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+MODEL_PATH = f"models/{DEFAULT_MODEL}.pt"
 
-# Detection Thresholds
-CONFIDENCE_THRESHOLD = 0.5
-IOU_THRESHOLD = 0.45
+# Getting Recommended Thresholds
+# The system automatically adjusts thresholds based on selected model:
+# - yolov8n: CONFIDENCE=0.7, IOU=0.55 (speed-optimized)
+# - yolov8s: CONFIDENCE=0.65, IOU=0.5 (balanced, recommended)
+# - yolov8m: CONFIDENCE=0.6, IOU=0.45 (accuracy-optimized)
+# - yolov8l: CONFIDENCE=0.55, IOU=0.45 (high accuracy)
+# - yolov8x: CONFIDENCE=0.5, IOU=0.45 (maximum accuracy)
+
+# Detection Thresholds - Override defaults if needed
+CONFIDENCE_THRESHOLD = 0.65   # Minimum confidence for detection
+IOU_THRESHOLD = 0.5           # IoU threshold for NMS
 
 # Input Configuration
-INPUT_SIZE = (640, 640)
+INPUT_SIZE = (640, 640)       # Model input size
+
+# Webcam Settings
+WEBCAM_SOURCE = 0             # Device ID (0 = default webcam)
+WEBCAM_WIDTH = 1280
+WEBCAM_HEIGHT = 720
+
+# Alert Settings
+ALERT_ON_PERSON_DETECTION = False
+PERSON_COUNT_THRESHOLD = 5
 
 # Class Colors (BGR format)
 CLASS_COLORS = {
@@ -248,11 +394,30 @@ CLASS_COLORS = {
     'animal': (0, 255, 255),    # Yellow
     'object': (0, 0, 255),      # Red
 }
-
-# Alert Configuration
-ALERT_ON_PERSON_DETECTION = False
-PERSON_COUNT_THRESHOLD = 5
 ```
+
+### Performance Tuning Tips
+
+**For Maximum Accuracy:**
+1. Use larger models: `yolov8l` or `yolov8x`
+2. Decrease confidence threshold: 0.5-0.6
+3. Increase IOU threshold: 0.5-0.6
+4. Enable tracking for consistency across frames
+5. Example: `python main.py --source webcam --model-variant yolov8x --confidence 0.5 --tracking`
+
+**For Maximum Speed:**
+1. Use smaller models: `yolov8n` or `yolov8s`
+2. Increase confidence threshold: 0.7-0.8
+3. Decrease IOU threshold: 0.4-0.45
+4. Disable tracking
+5. Run on GPU if available
+6. Example: `python main.py --source webcam --model-variant yolov8n --confidence 0.8 --no-display`
+
+**For Balanced Performance:**
+1. Use `yolov8s` (default, recommended)
+2. Confidence: 0.65, IOU: 0.5
+3. Enable tracking for better stability
+4. Example: `python main.py --source webcam --model-variant yolov8s --tracking`
 
 ---
 

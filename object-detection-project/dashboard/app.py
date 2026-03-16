@@ -9,6 +9,7 @@ import numpy as np
 from pathlib import Path
 import tempfile
 from datetime import datetime
+import time
 
 # Import project modules
 from src.config import (
@@ -144,6 +145,126 @@ def run_detection_on_video(video_path, engine, post_processor, visualizer, progr
     final_stats['avg_detections_per_frame'] = len(all_detections) / max(frame_count, 1)
     
     return output_path, final_stats
+
+
+def run_webcam_detection(engine, post_processor, visualizer, enable_tracking, max_frames=None):
+    """
+    Run detection on webcam feed in real-time.
+    
+    Args:
+        engine: Detection engine
+        post_processor: Post-processor
+        visualizer: Visualizer
+        enable_tracking: Whether to use object tracking
+        max_frames: Maximum frames to process (None for continuous)
+    
+    Returns:
+        Dictionary with statistics
+    """
+    # Open webcam
+    cap = cv2.VideoCapture(0)
+    
+    if not cap.isOpened():
+        return {"error": "Failed to open webcam"}
+    
+    # Get webcam properties
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    # Create display placeholders
+    frame_placeholder = st.empty()
+    stats_placeholder = st.empty()
+    metrics_placeholder = st.empty()
+    
+    frame_count = 0
+    all_detections = []
+    fps_counter = []
+    start_time = time.time()
+    
+    # Initialize tracker if enabled
+    tracker = create_tracker(use_bytetrack=enable_tracking) if enable_tracking else None
+    
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame_count += 1
+            
+            if max_frames and frame_count > max_frames:
+                break
+            
+            # Run detection
+            frame_start = time.time()
+            detections = engine.detect(frame)
+            all_detections.extend(detections)
+            
+            # Apply tracking if enabled
+            if tracker and detections:
+                detections = tracker.update(detections, frame)
+            
+            # Process results
+            result = post_processor.process(detections, source_type='webcam', save_log=False)
+            stats = result['stats']
+            
+            # Calculate FPS
+            frame_time = time.time() - frame_start
+            current_fps = 1.0 / frame_time if frame_time > 0 else 0
+            fps_counter.append(current_fps)
+            
+            stats['fps'] = current_fps
+            stats['frame_count'] = frame_count
+            
+            # Visualize
+            annotated = visualizer.visualize(frame, detections, stats)
+            
+            # Convert BGR to RGB for display
+            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+            
+            # Display frame
+            frame_placeholder.image(annotated_rgb, use_container_width=True)
+            
+            # Update statistics
+            with stats_placeholder.container():
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col1:
+                    st.metric("🎬 Frame", frame_count)
+                with col2:
+                    st.metric("🎯 Objects", stats['total_detections'])
+                with col3:
+                    st.metric("👤 Persons", stats['person_count'])
+                with col4:
+                    st.metric("🚗 Vehicles", stats['vehicle_count'])
+                with col5:
+                    st.metric("⚡ FPS", f"{current_fps:.1f}")
+            
+            # Update metrics
+            with metrics_placeholder.container():
+                avg_fps = sum(fps_counter[-60:]) / len(fps_counter[-60:]) if fps_counter else 0
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Avg Confidence", f"{stats['avg_confidence']:.1%}")
+                with col2:
+                    st.metric("Avg FPS (60f)", f"{avg_fps:.1f}")
+                with col3:
+                    st.metric("Total Detections", len(all_detections))
+    
+    except Exception as e:
+        st.error(f"Error during webcam detection: {str(e)}")
+    
+    finally:
+        cap.release()
+    
+    # Calculate final statistics
+    final_stats = calculate_statistics(all_detections)
+    final_stats['total_frames'] = frame_count
+    final_stats['avg_fps'] = sum(fps_counter) / len(fps_counter) if fps_counter else 0
+    final_stats['max_fps'] = max(fps_counter) if fps_counter else 0
+    final_stats['min_fps'] = min(fps_counter) if fps_counter else 0
+    
+    return final_stats
 
 
 def main():
@@ -341,26 +462,123 @@ def main():
                     )
     
     elif input_mode == "📹 Webcam":
-        st.markdown("### Real-time Webcam Detection")
+        st.markdown("### 🎥 Real-time Webcam Detection")
         
-        st.info("📌 **Note:** For real-time webcam detection, please use the command-line interface:")
-        st.code("python main.py --source webcam", language="bash")
+        # Webcam settings in columns
+        col1, col2 = st.columns(2)
         
-        st.markdown("""
-        #### Keyboard Shortcuts:
-        - `q` - Quit
-        - `s` - Save snapshot
+        with col1:
+            max_frames_option = st.selectbox(
+                "Detection Duration",
+                options=[
+                    "Continuous (until stopped)",
+                    "100 frames",
+                    "300 frames",
+                    "500 frames",
+                    "1000 frames",
+                ]
+            )
+            
+            max_frames = None
+            if max_frames_option != "Continuous (until stopped)":
+                max_frames = int(max_frames_option.split()[0])
         
-        The webcam mode provides:
-        - ✅ Real-time detection at maximum FPS
-        - ✅ Object tracking (if enabled)
-        - ✅ Live statistics overlay
-        - ✅ Snapshot saving capability
-        """)
+        with col2:
+            st.markdown("**Camera Status:**")
+            camera_status = st.empty()
         
-        # Placeholder for future webcam implementation
-        # Note: Streamlit doesn't support real-time webcam processing well
-        # due to its request-response architecture
+        # Start/Stop buttons
+        col1, col2, col3 = st.columns(3)
+        
+        start_webcam = col1.button("▶️ Start Webcam Detection", key="start_webcam", use_container_width=True)
+        stop_webcam = col2.button("⏹️ Stop Detection", key="stop_webcam", use_container_width=True)
+        save_session = col3.button("💾 Save Session Stats", key="save_stats", use_container_width=True)
+        
+        if start_webcam:
+            camera_status.success("✅ Camera Active")
+            
+            with st.spinner("🎥 Initializing webcam... Please allow camera access if prompted."):
+                try:
+                    # Run webcam detection
+                    stats = run_webcam_detection(
+                        engine,
+                        post_processor,
+                        visualizer,
+                        enable_tracking,
+                        max_frames=max_frames
+                    )
+                    
+                    if "error" not in stats:
+                        st.success("✅ Webcam detection completed!")
+                        
+                        # Final summary
+                        st.markdown("### 📊 Session Summary")
+                        
+                        summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+                        
+                        with summary_col1:
+                            st.metric("Total Frames", stats['total_frames'])
+                        
+                        with summary_col2:
+                            st.metric("Total Detections", stats['total_detections'])
+                        
+                        with summary_col3:
+                            st.metric("Avg FPS", f"{stats['avg_fps']:.1f}")
+                        
+                        with summary_col4:
+                            st.metric("Avg Confidence", f"{stats['avg_confidence']:.1%}")
+                        
+                        # Detailed statistics
+                        st.markdown("#### Detection Breakdown")
+                        
+                        detail_col1, detail_col2, detail_col3, detail_col4 = st.columns(4)
+                        
+                        with detail_col1:
+                            st.metric("👤 Persons Detected", stats['person_count'])
+                        
+                        with detail_col2:
+                            st.metric("🚗 Vehicles Detected", stats['vehicle_count'])
+                        
+                        with detail_col3:
+                            st.metric("🦁 Animals Detected", stats['animal_count'])
+                        
+                        with detail_col4:
+                            st.metric("📦 Objects Detected", stats['object_count'])
+                        
+                        # Class breakdown if available
+                        if stats.get('class_counts'):
+                            st.markdown("#### Class Distribution")
+                            st.bar_chart(stats['class_counts'])
+                    else:
+                        st.error(f"❌ Error: {stats['error']}")
+                        camera_status.error("❌ Camera Failed")
+                
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    camera_status.error("❌ Error")
+        
+        elif stop_webcam:
+            camera_status.warning("⏸️ Detection Stopped")
+            st.info("Click 'Start Webcam Detection' to begin again.")
+        
+        else:
+            camera_status.info("⏳ Click 'Start Webcam Detection' to begin")
+            
+            # Display webcam tips
+            st.markdown("""
+            **💡 Tips for best webcam detection:**
+            - Ensure good lighting in your environment
+            - Face the camera directly for person detection
+            - For vehicle detection, make sure vehicles are clearly visible
+            - Enable object tracking for more stable detections
+            - Use a higher accuracy model (Medium/Large) for better results
+            
+            **⚙️ Settings applied:**
+            - Model: """ + selected_model + """
+            - Confidence Threshold: """ + str(confidence_threshold) + """
+            - IoU Threshold: """ + str(iou_threshold) + """
+            - Object Tracking: """ + ("✅ Enabled" if enable_tracking else "❌ Disabled") + """
+            """)
     
     # Footer
     st.markdown("---")

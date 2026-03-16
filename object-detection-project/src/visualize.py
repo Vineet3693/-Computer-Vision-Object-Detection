@@ -94,6 +94,9 @@ def draw_label(
     """
     x1, y1, x2, y2 = map(int, bbox)
     
+    # Ensure string is clean (remove any extra whitespace)
+    label = str(label).strip()
+    
     # Calculate label size
     font = cv2.FONT_HERSHEY_SIMPLEX
     thickness = LINE_THICKNESS
@@ -103,11 +106,16 @@ def draw_label(
     
     # Calculate label position (above the box)
     label_y = y1 - 10
-    label_x = x1
+    label_x = max(0, x1)  # Ensure label stays within frame
     
     # Ensure label is within frame bounds
+    height, width = frame.shape[:2]
     if label_y < label_height + baseline:
-        label_y = y2 + label_height + baseline
+        label_y = min(y2 + label_height + baseline, height - baseline)
+    
+    # Also ensure label doesn't go off right edge
+    if label_x + label_width > width:
+        label_x = max(0, width - label_width - 5)
     
     # Draw label background
     cv2.rectangle(

@@ -67,12 +67,13 @@ class SimpleTracker:
         
         return intersection / union
     
-    def update(self, detections: List[Dict]) -> List[Dict]:
+    def update(self, detections: List[Dict], frame_shape: Optional[tuple] = None) -> List[Dict]:
         """
         Update tracker with new detections.
         
         Args:
             detections: List of detection dictionaries
+            frame_shape: Frame shape (height, width) - ignored for SimpleTracker
         
         Returns:
             List of tracked detections with track IDs
@@ -179,13 +180,13 @@ class ByteTrackWrapper:
             track_buffer=track_buffer,
         )
     
-    def update(self, detections: List[Dict], frame_shape: tuple) -> List[Dict]:
+    def update(self, detections: List[Dict], frame: Optional[np.ndarray] = None) -> List[Dict]:
         """
         Update tracker with new detections.
         
         Args:
             detections: List of detection dictionaries
-            frame_shape: Frame shape (height, width)
+            frame: Input frame (numpy array) for ByteTrack
         
         Returns:
             List of tracked detections with track IDs
@@ -203,7 +204,13 @@ class ByteTrackWrapper:
         det_array = np.array(det_array)
         
         # Run ByteTrack update
-        tracked_boxes = self.tracker.update(det_array, frame_shape)
+        # ByteTrack expects frame as numpy array for shape information
+        if frame is not None:
+            tracked_boxes = self.tracker.update(det_array, frame)
+        else:
+            # Fallback: use frame_shape if frame not provided
+            # This is less reliable but works if frame isn't available
+            tracked_boxes = self.tracker.update(det_array)
         
         # Map back to original detections
         tracked_detections = []

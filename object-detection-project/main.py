@@ -14,6 +14,8 @@ from src.config import (
     IOU_THRESHOLD,
     DETECTED_IMAGES_DIR,
     DETECTED_VIDEOS_DIR,
+    AVAILABLE_MODELS,
+    MODEL_THRESHOLDS,
 )
 from src.preprocess import InputHandler, preprocess_frame
 from src.detect import DetectionEngine
@@ -145,7 +147,7 @@ def detect_video(
             
             # Apply tracking if enabled
             if tracker and detections:
-                detections = tracker.update(detections)
+                detections = tracker.update(detections, frame)
             
             # Record metrics
             metrics.record_frame(detections, inference_time)
@@ -263,7 +265,7 @@ def detect_webcam(
             
             # Apply tracking if enabled
             if tracker and detections:
-                detections = tracker.update(detections)
+                detections = tracker.update(detections, frame)
             
             # Record metrics
             metrics.record_frame(detections, inference_time)
@@ -311,7 +313,22 @@ def detect_webcam(
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='AI Object Detection System using YOLOv8'
+        description='AI Object Detection System using YOLOv8',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Webcam detection with default model
+  python main.py --source webcam
+  
+  # High accuracy with medium model
+  python main.py --source webcam --model-variant yolov8m
+  
+  # List all available models
+  python main.py --list-models
+  
+  # Video detection with large model
+  python main.py --source video.mp4 --model-variant yolov8l
+        """
     )
     
     parser.add_argument(
@@ -322,30 +339,38 @@ def main():
     )
     
     parser.add_argument(
+        '--model-variant',
+        type=str,
+        choices=['yolov8n', 'yolov8s', 'yolov8m', 'yolov8l', 'yolov8x'],
+        default='yolov8s',
+        help='YOLOv8 model variant (n=nano, s=small, m=medium, l=large, x=xlarge). Default: yolov8s (balanced)'
+    )
+    
+    parser.add_argument(
         '--model',
         type=str,
-        default=MODEL_PATH,
-        help='Path to YOLOv8 model weights'
+        default=None,
+        help='[Advanced] Full path to YOLOv8 model weights (overrides --model-variant)'
     )
     
     parser.add_argument(
         '--confidence',
         type=float,
-        default=CONFIDENCE_THRESHOLD,
-        help='Confidence threshold (0-1)'
+        default=None,
+        help='Confidence threshold (0-1). If not specified, uses model-specific default'
     )
     
     parser.add_argument(
         '--iou',
         type=float,
-        default=IOU_THRESHOLD,
-        help='IoU threshold for NMS (0-1)'
+        default=None,
+        help='IoU threshold for NMS (0-1). If not specified, uses model-specific default'
     )
     
     parser.add_argument(
         '--tracking',
         action='store_true',
-        help='Enable object tracking'
+        help='Enable object tracking (ByteTrack)'
     )
     
     parser.add_argument(
@@ -354,14 +379,70 @@ def main():
         help='Disable display window'
     )
     
+    parser.add_argument(
+        '--list-models',
+        action='store_true',
+        help='List all available YOLOv8 models and exit'
+    )
+    
     args = parser.parse_args()
+    
+    # Handle list models command
+    if args.list_models:
+        print("\n" + "="*80)
+        print("Available YOLOv8 Models")
+        print("="*80 + "\n")
+        
+        for model_id, info in AVAILABLE_MODELS.items():
+            print(f"📦 {info['name']} ({model_id})")
+            print(f"   Size: {info['size']:<12} | Speed: {info['speed']:<12} | Accuracy: {info['accuracy']}")
+            print(f"   Params: {info['params']:<12} | Use Case: {info['use_case']}")
+            
+            threshold_info = MODEL_THRESHOLDS.get(model_id, {})
+            conf = threshold_info.get('confidence', 0.5)
+            iou = threshold_info.get('iou', 0.45)
+            print(f"   Recommended: --confidence {conf} --iou {iou}")
+            print()
+        
+        print("="*80)
+        print("Quick Start Examples:")
+        print("="*80)
+        print("  Fastest (edge devices):     python main.py --source webcam --model-variant yolov8n")
+        print("  Balanced (recommended):     python main.py --source webcam --model-variant yolov8s")
+        print("  High accuracy:              python main.py --source webcam --model-variant yolov8m")
+        print("  Very high accuracy:         python main.py --source webcam --model-variant yolov8l")
+        print("  Best accuracy (slow):       python main.py --source webcam --model-variant yolov8x")
+        print("="*80 + "\n")
+        sys.exit(0)
+    
+    # Determine model path
+    if args.model:
+        # User provided explicit path
+        model_path = args.model
+        model_variant = 'custom'
+    else:
+        # Use model variant
+        model_variant = args.model_variant
+        model_path = f"models/{model_variant}.pt"
+    
+    # Get thresholds for selected model (if not overridden)
+    if model_variant in MODEL_THRESHOLDS:
+        model_config = MODEL_THRESHOLDS[model_variant]
+        confidence = args.confidence if args.confidence is not None else model_config['confidence']
+        iou = args.iou if args.iou is not None else model_config['iou']
+        log_info(f"Using {AVAILABLE_MODELS[model_variant]['name']} - {model_config['description']}")
+    else:
+        # Custom model
+        confidence = args.confidence if args.confidence is not None else CONFIDENCE_THRESHOLD
+        iou = args.iou if args.iou is not None else IOU_THRESHOLD
+    
     
     # Initialize detection engine
     log_info("Initializing detection system...")
     engine = DetectionEngine(
-        model_path=args.model,
-        confidence_threshold=args.confidence,
-        iou_threshold=args.iou,
+        model_path=model_path,
+        confidence_threshold=confidence,
+        iou_threshold=iou,
     )
     
     if not engine.load_model():

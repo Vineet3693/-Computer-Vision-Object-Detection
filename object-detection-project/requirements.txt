@@ -1,6 +1,3 @@
-# Python
-python>=3.10,<4.0
-
 # Core ML/DL
 torch>=2.0.0
 torchvision>=0.15.0
