@@ -1,0 +1,39 @@
+# Core Dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0  # YOLOv8
+
+# LLM APIs
+google-generativeai>=0.3.0  # Gemini AI
+groq>=0.4.0  # Groq API
+
+# Speech Processing
+openai-whisper>=20230918  # Speech to text
+TTS>=0.21.0  # Coqui TTS
+pocketsphinx>=5.0.0  # Offline speech recognition
+
+# Wake Word Detection
+pvporcupine>=3.0.0  # Picovoice Porcupine
+
+# Memory & LangChain
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-google-genai>=0.0.1
+
+# Web Search
+duckduckgo-search>=4.0.0
+
+# Dashboard
+streamlit>=1.29.0
+streamlit-webrtc>=0.47.0  # Camera feed in Streamlit
+
+# Utilities
+python-dotenv>=1.0.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+requests>=2.31.0
+
+# Optional: Enhanced Features
+transformers>=4.35.0  # For additional models
+sentence-transformers>=2.2.0  # For better embeddings

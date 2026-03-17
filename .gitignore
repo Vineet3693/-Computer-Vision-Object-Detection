@@ -8,33 +8,38 @@ __pycache__/
 env/
 venv/
 .venv/
-.venv.bak/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
+.ENV
+.ENV.local
+.env
+.env.local
+.env.*
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
 .coverage
+htmlcov/
+.tox/
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
 *.cover
 *.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Dependencies
-node_modules/
-target/
-.gradle/
-.mypy_cache/
-.pytest_cache/
 ```
